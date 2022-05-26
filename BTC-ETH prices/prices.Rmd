@@ -1,0 +1,72 @@
+---
+title: "Price evolution"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(tidyverse)
+library(lubridate)
+library(shiny)
+library(plotly)
+```
+
+```{r data, include=FALSE}
+btcprice <- read.csv("btc-usd-max.csv")
+ethprice <- read.csv("eth-usd-max.csv")
+
+btcprice <- as_tibble(btcprice) %>%
+  mutate(DATES = as_date(snapped_at)) %>% 
+  group_by(DATES) %>% 
+  mutate(btcprice = round(mean(price),0)) %>% 
+  select(DATES, btcprice)
+
+ethprice <- as_tibble(ethprice) %>%
+  mutate(DATES = as_date(snapped_at)) %>% 
+  group_by(DATES) %>% 
+  mutate(ethprice = round(mean(price),0)) %>% 
+  select(DATES, ethprice)            
+
+data <- btcprice %>% 
+  left_join(ethprice, by = "DATES")
+
+Variables = c("btcprice", "ethprice")
+```
+
+
+Column {.sidebar data-width=300}
+-----------------------------------------------------------------------
+```{r}
+selectInput("Coin", label = "Select coin:", choices = Variables)
+```
+
+
+Column {data-width=400}
+-----------------------------------------------------------------------
+
+### Chart A
+
+###CORREGIR ESTE###
+```{r}
+renderPlotly({
+  plot_ly(data, x = ~DATES, y = ~data[[input$Coin]], type = 'scatter', mode = 'lines')
+})
+```
+
+
+### Chart B
+
+```{r}
+renderPlot({
+ggplot(data, aes(DATES)) + 
+  geom_line(aes(y = data[[input$Coin]])) + 
+  ylab("USD Value") +
+  xlab("Date") +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y")
+})
+```
+
