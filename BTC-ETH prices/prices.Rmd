@@ -13,6 +13,7 @@ library(tidyverse)
 library(lubridate)
 library(shiny)
 library(plotly)
+library(DT)
 ```
 
 ```{r data, include=FALSE}
@@ -31,42 +32,78 @@ ethprice <- as_tibble(ethprice) %>%
   mutate(ethprice = round(mean(price),0)) %>% 
   select(DATES, ethprice)            
 
-data <- btcprice %>% 
+DATES <- btcprice$DATES
+data <- tibble(DATES)
+
+data <- data %>%
+  left_join(btcprice, by = "DATES") %>% 
   left_join(ethprice, by = "DATES")
 
-Variables = c("btcprice", "ethprice")
+data[is.na(data)] <- 0
+
+data_variation <- data %>%
+  arrange(DATES) %>% 
+  mutate(BTC_VAR = round((btcprice/lag(btcprice)-1)*100,1),
+         ETH_VAR = round((ethprice/lag(ethprice)-1)*100,1))
+
+is.na(data_variation) <- sapply(data_variation, is.infinite)
+data_variation[is.na(data_variation)] <- 0
+
+Variables1 = c("btcprice", "ethprice")
+Variables2 = c("BTC_VAR", "ETH_VAR")
 ```
 
 
-Column {.sidebar data-width=300}
+Column {.sidebar data-width=200}
 -----------------------------------------------------------------------
 ```{r}
-selectInput("Coin", label = "Select coin:", choices = Variables)
+selectInput("Coin_price", label = "Select coin_price:", choices = Variables1)
+
+selectInput("Coin_var", label = "Select coin_var:", choices = Variables2)
 ```
 
 
-Column {data-width=400}
+Column {data-width=200}
 -----------------------------------------------------------------------
 
-### Chart A
+### TEXTO
 
-###CORREGIR ESTE###
+Descripción del tablero... este texto puede ir arriba de los cuadros, ocupando el ancho de todo el tablero sin pertenecer a ninguna columna.
+
+
+### Tabla
+
 ```{r}
-renderPlotly({
-  plot_ly(data, x = ~DATES, y = ~data[[input$Coin]], type = 'scatter', mode = 'lines')
+renderDT({
+  datatable(data_variation,
+    rownames = FALSE, options = list(pageLength = 6)
+  )
 })
 ```
 
 
-### Chart B
+Column {data-width=200}
+-----------------------------------------------------------------------
+### Precios
 
 ```{r}
 renderPlot({
 ggplot(data, aes(DATES)) + 
-  geom_line(aes(y = data[[input$Coin]])) + 
+  geom_line(aes(y = data[[input$Coin_price]])) + 
   ylab("USD Value") +
   xlab("Date") +
   scale_x_date(date_breaks = "1 year", date_labels = "%Y")
 })
 ```
 
+
+### Variación diaria
+
+```{r}
+renderPlotly({
+  plot_ly(data_variation, x = ~DATES, y = ~data_variation[[input$Coin_var]], type = 'scatter', mode = 'lines') %>%
+  layout(title = "",
+         yaxis = list(title = "Daily Variation" ,
+                      zeroline = FALSE))
+})
+```
